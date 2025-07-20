@@ -1,0 +1,169 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pendaftaran & Spin Wheel Hadiah</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #f5f7fa, #c3cfe2);
+      margin: 0; padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      padding: 30px;
+    }
+    h2 { text-align: center; }
+    input, select {
+      width: 100%; padding: 10px; margin: 8px 0;
+      border: 1px solid #ccc; border-radius: 6px;
+    }
+    button {
+      background: #3498db; color: white; padding: 12px;
+      border: none; border-radius: 6px; cursor: pointer;
+      width: 100%; font-size: 16px;
+    }
+    button:hover { background: #2980b9; }
+    #wheelCanvas { display: block; margin: 30px auto; }
+    #spinBtn { display: none; margin-top: 10px; }
+    #result { text-align: center; margin-top: 20px; font-weight: bold; font-size: 20px; white-space: pre-line; }
+    .banner-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .banner-container img {
+      width: 120px;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    #loading {
+      display: none;
+      text-align: center;
+      font-style: italic;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="banner-container">
+      <img src="https://via.placeholder.com/120x60?text=Banner+1" alt="Banner 1">
+      <img src="https://via.placeholder.com/120x60?text=Banner+2" alt="Banner 2">
+      <img src="https://via.placeholder.com/120x60?text=Banner+3" alt="Banner 3">
+      <img src="https://via.placeholder.com/120x60?text=Banner+4" alt="Banner 4">
+      <img src="https://via.placeholder.com/120x60?text=Banner+5" alt="Banner 5">
+      <img src="https://via.placeholder.com/120x60?text=Banner+6" alt="Banner 6">
+    </div>
+
+    <h2>Formulir Pendaftaran</h2>
+    <form id="regForm">
+      <input type="text" name="userid" placeholder="User ID" required>
+      <input type="text" name="nama" placeholder="Nama Lengkap" required>
+      <input type="text" name="wa" placeholder="Nomor WhatsApp" required>
+      <input type="email" name="email" placeholder="Email Aktif" required>
+      <input type="text" name="bank" placeholder="Nama Bank" required>
+      <input type="text" name="namarek" placeholder="Nama Rekening" required>
+      <input type="text" name="norek" placeholder="Nomor Rekening" required>
+      <input type="text" name="tiket" value="1" readonly>
+      <button type="submit">Daftar & Dapatkan Tiket Spin</button>
+    </form>
+
+    <div id="loading">⏳ Mengirim data ke server...</div>
+
+    <canvas id="wheelCanvas" width="300" height="300"></canvas>
+    <button id="spinBtn">🎉 Putar Sekali!</button>
+    <div id="result"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/zarocknz/javascript-winwheel@2.7.0/Winwheel.min.js"></script>
+  <script>
+    const form = document.getElementById('regForm');
+    const spinBtn = document.getElementById('spinBtn');
+    const resultDiv = document.getElementById('result');
+    const loading = document.getElementById('loading');
+    let wheel;
+    let formData = {};
+
+    const hadiah = [
+      'RP 5.000', 'RP 10.000', 'RP 15.000', 'RP 20.000',
+      'RP 25.000', 'RP 30.000', 'RP 35.000', 'RP 40.000', 'RP 50.000'
+    ];
+
+    function initWheel() {
+      wheel = new Winwheel({
+        'canvasId': 'wheelCanvas',
+        'numSegments': hadiah.length,
+        'segments': hadiah.map((h, i) => ({
+          'fillStyle': ['#f39c12', '#e74c3c', '#8e44ad', '#2ecc71', '#3498db'][i % 5],
+          'text': h
+        })),
+        'animation': {
+          'type': 'spinToStop',
+          'duration': 5,
+          'spins': 7,
+          'callbackFinished': alertPrize
+        }
+      });
+      wheel.animation.spinning = false;
+    }
+
+    function alertPrize(indicatedSegment) {
+      const hadiahSpin = indicatedSegment.text;
+      resultDiv.innerText = `🎊 Kamu mendapatkan: ${hadiahSpin}`;
+      wheel.animation.spinning = false;
+      spinBtn.disabled = true;
+      spinBtn.style.display = 'none';
+      loading.style.display = 'block';
+
+      fetch('https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, hadiah: hadiahSpin })
+      })
+      .then(response => response.json())
+      .then(data => {
+        loading.style.display = 'none';
+        resultDiv.innerText += '\n✅ Data berhasil dikirim ke spreadsheet!';
+      })
+      .catch(error => {
+        loading.style.display = 'none';
+        console.error("Error:", error);
+        resultDiv.innerText += '\n❌ Gagal kirim data: ' + error.message;
+      });
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const data = new FormData(form);
+      formData = Object.fromEntries(data.entries());
+
+      if (!/^08\d{8,13}$/.test(formData.wa)) {
+        alert("❌ Nomor WhatsApp tidak valid. Harus dimulai dengan 08.");
+        return;
+      }
+
+      form.querySelector('button[type="submit"]').disabled = true;
+      form.style.display = 'none';
+      spinBtn.style.display = 'block';
+      initWheel();
+    });
+
+    spinBtn.addEventListener('click', () => {
+      if (wheel && !wheel.animation.spinning) {
+        wheel.startAnimation();
+        wheel.animation.spinning = true;
+      }
+    });
+  </script>
+</body>
+</html>
