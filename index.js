@@ -11,6 +11,7 @@ app.use(express.json());
 
 app.post("/check-pin", (req, res) => {
   const { pin } = req.body;
+  console.log("Diterima PIN:", pin);
   if (pin === PIN_ADMIN) {
     res.json({ valid: true }); // GUNAKAN `valid`, bukan `success`
   } else {
